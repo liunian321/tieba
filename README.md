@@ -26,7 +26,7 @@
 
 ## 贴吧签到
 ### 1. 如何运行
-    运行[test](test)目录下的[signIn.spec.ts](test%2FsignIn.spec.ts)的signIn函数即可
+    运行 test 文件夹下的 sign.spec.ts 中的 signIn 方法即可
 
 
 ## Installation
