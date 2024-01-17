@@ -12,7 +12,7 @@ export class BrowserService {
   /**
    * 启动浏览器
    */
-  async launch({ accountId }: { accountId: number }): Promise<Browser> {
+  async launch({ accountId }: { accountId: string }): Promise<Browser> {
     const browserEndpoint = this.configService.get('BROWSER_ENDPOINT');
 
     const windowWidth = this.configService.get('WINDOW_WIDTH')
@@ -59,7 +59,7 @@ export class BrowserService {
             url.searchParams.set('--media-cache-size=0', 'true');
 
             url.searchParams.set('--user-data-dir', userDataDir);
-            url.searchParams.set('--user-data-id', accountId.toString());
+            url.searchParams.set('--user-data-id', accountId);
 
             return url.toString();
           })(),
@@ -69,6 +69,7 @@ export class BrowserService {
           headless: headless,
           defaultViewport: { width: windowWidth, height: windowHeight },
           userDataDir: userDataDir,
+          timeout: 0,
           args: [
             `--disable-notifications=true`,
             // `--user-agent=${userAgent}`,

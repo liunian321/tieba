@@ -22,7 +22,7 @@ export class CommonService {
    * @param page
    * @param timeout 超时时间
    */
-  async gotoPage(url: string, page: Page, timeout?: number) {
+  async gotoPage(url: string, page: Page, timeout?: number): Promise<void> {
     let response: HTTPResponse | null = null;
     const gotoPageStartTime = Date.now();
     try {
@@ -91,7 +91,7 @@ export class CommonService {
 
       eventEmitter.removeAllListeners('waitNetworkOver' + nowTime);
     } catch (err) {
-      if (this.configService.get('DEBUG') === 'True') {
+      if (this.configService.get('DEBUG') === 'true') {
         this.logger.error('等待网络失败', { err });
       }
     }
@@ -101,12 +101,12 @@ export class CommonService {
     page: Page,
     interval: number = ms('1s'),
     key: string | number,
-  ) {
+  ): Promise<void> {
     let i = 0;
     let j = 0;
     let hasRequest = false;
     const startTime = Date.now();
-    const requestHandler = (request: HTTPRequest) => {
+    const requestHandler = (request: HTTPRequest): void => {
       if (
         !blockedContentTypes.includes(request.resourceType()) &&
         !['webSocket'].includes(request.resourceType()) &&
@@ -121,7 +121,7 @@ export class CommonService {
       }
     };
 
-    const responseHandler = (response: HTTPResponse) => {
+    const responseHandler = (response: HTTPResponse): void => {
       const request = response.request();
       if (
         !blockedContentTypes.includes(request.resourceType()) &&
@@ -134,15 +134,15 @@ export class CommonService {
       }
     };
 
-    new Promise<string>(() => {
+    new Promise<string>((): void => {
       page.on('request', requestHandler);
     });
 
-    new Promise<string>(() => {
+    new Promise<string>((): void => {
       page.on('response', responseHandler);
     });
 
-    const obj = setInterval(() => {
+    const obj = setInterval((): void => {
       if ((i <= 0 && j > 1) || (!hasRequest && j > 0)) {
         // 如果 连续两次单位时间内没有请求或者响应, 则返回
         clearInterval(obj);
@@ -150,7 +150,7 @@ export class CommonService {
         page.off('request', requestHandler);
         page.off('response', responseHandler);
 
-        if (this.configService.get('DEBUG') === 'True') {
+        if (this.configService.get('DEBUG') === 'true') {
           console.log('等待网络结束: ' + (Date.now() - startTime) + 'ms');
         }
 
@@ -172,7 +172,7 @@ export class CommonService {
     url?: string,
     flag?: string,
   ): Promise<string> {
-    const responseHandler = async (response: HTTPResponse) => {
+    const responseHandler = async (response: HTTPResponse): Promise<void> => {
       if (response.status() >= 300 && response.status() < 400) {
         // 重定向的无法获取响应结果
         eventEmitter.emit('listenResponseOver' + url ?? '', '');
@@ -256,7 +256,7 @@ export class CommonService {
       }
     | undefined
   > {
-    const requestHandler = async (request: HTTPRequest) => {
+    const requestHandler = async (request: HTTPRequest): Promise<void> => {
       let req: HTTPRequest | undefined;
 
       if (url === undefined) {
@@ -304,7 +304,7 @@ export class CommonService {
     text: string,
     clearDefaults: boolean,
     needDelay?: boolean,
-  ) {
+  ): Promise<void> {
     if (clearDefaults) {
       await page.keyboard.down('Control');
       await delay(random(50, 100));
@@ -382,10 +382,10 @@ export class CommonService {
 
       return element;
     } catch (err) {
-      if (this.configService.get('DEBUG') === 'True') {
+      if (this.configService.get('DEBUG') === 'true') {
         console.log(err);
       }
-      if (businessType && this.configService.get('DEBUG') !== 'True') {
+      if (businessType && this.configService.get('DEBUG') !== 'true') {
         this.logger.warn(businessType + '点击元素失败');
         // this.logger.assign({
         //   clickErrorType: businessType,
@@ -426,7 +426,7 @@ export class CommonService {
     buffer: Buffer,
     fileName: string,
     fileType: string,
-  ) {
+  ): Promise<void> {
     await page.evaluate(
       async (bufferFile, bufferFileName, mimeType) => {
         const inputElement = document.activeElement
