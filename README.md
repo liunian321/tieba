@@ -24,7 +24,10 @@
 
 ## Description
 
-贴吧签到
+## 贴吧签到
+### 1. 如何运行
+    运行[test](test)目录下的[signIn.spec.ts](test%2FsignIn.spec.ts)的signIn函数即可
+
 
 ## Installation
 

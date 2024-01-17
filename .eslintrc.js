@@ -4,7 +4,7 @@ module.exports = {
     project: 'tsconfig.json',
     tsconfigRootDir: __dirname,
     sourceType: 'module',
-    target: 'es2023',
+    target: 'esnext',
   },
   plugins: ['@typescript-eslint/eslint-plugin'],
   extends: [
