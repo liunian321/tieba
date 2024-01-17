@@ -91,7 +91,7 @@ export class CommonService {
 
       eventEmitter.removeAllListeners('waitNetworkOver' + nowTime);
     } catch (err) {
-      if (this.configService.get('DEBUG') === 'True') {
+      if (this.configService.get('DEBUG') === 'true') {
         this.logger.error('等待网络失败', { err });
       }
     }
@@ -150,7 +150,7 @@ export class CommonService {
         page.off('request', requestHandler);
         page.off('response', responseHandler);
 
-        if (this.configService.get('DEBUG') === 'True') {
+        if (this.configService.get('DEBUG') === 'true') {
           console.log('等待网络结束: ' + (Date.now() - startTime) + 'ms');
         }
 
@@ -382,10 +382,10 @@ export class CommonService {
 
       return element;
     } catch (err) {
-      if (this.configService.get('DEBUG') === 'True') {
+      if (this.configService.get('DEBUG') === 'true') {
         console.log(err);
       }
-      if (businessType && this.configService.get('DEBUG') !== 'True') {
+      if (businessType && this.configService.get('DEBUG') !== 'true') {
         this.logger.warn(businessType + '点击元素失败');
         // this.logger.assign({
         //   clickErrorType: businessType,
