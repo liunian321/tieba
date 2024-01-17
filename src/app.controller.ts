@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { SignInService } from './serivce/signIn.service';
 
 @Controller('tieba')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly signInService: SignInService) {}
 
   @Get('signIn')
   async signIn(): Promise<void> {
-    await this.appService.signIn();
+    await this.signInService.main();
   }
 }

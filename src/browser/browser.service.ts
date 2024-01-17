@@ -69,6 +69,7 @@ export class BrowserService {
           headless: headless,
           defaultViewport: { width: windowWidth, height: windowHeight },
           userDataDir: userDataDir,
+          timeout: 0,
           args: [
             `--disable-notifications=true`,
             // `--user-agent=${userAgent}`,

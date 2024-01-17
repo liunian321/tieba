@@ -20,3 +20,8 @@ export const PROJECT_NAME = 'tieba';
  */
 export const ONE_KEY_SIGN_RESULT_URL =
   'https://tieba.baidu.com/tbmall/onekeySignin1';
+
+/**
+ * 关注的吧URL
+ */
+export const FOLLOW_BAR_URL = 'https://tieba.baidu.com/i/i/forum';
