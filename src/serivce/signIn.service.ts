@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Scope } from '@nestjs/common';
 import { BrowserService } from '../browser';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -11,7 +11,7 @@ import { delay } from 'bluebird';
 import ms from 'ms';
 import { Browser, ElementHandle, Page } from 'puppeteer';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class SignInService {
   private readonly logger: Logger = new Logger(SignInService.name);
 
@@ -23,21 +23,36 @@ export class SignInService {
 
   public browser: Browser;
 
-  async main(): Promise<void> {
+  async main(): Promise<
+    Array<{
+      message: string;
+      success: boolean;
+    }>
+  > {
     const startTime = Date.now();
 
     const accountId: string | undefined =
       await this.configService.get('accountId');
     if (!accountId || accountId == '') {
       this.logger.error('账号id不能为空');
-      return;
+      return [
+        {
+          message: '账号id不能为空',
+          success: false,
+        },
+      ];
     }
 
     const isLogin =
       ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
     if (!isLogin) {
       this.logger.error('请先手动登录');
-      return;
+      return [
+        {
+          message: '请先手动登录',
+          success: false,
+        },
+      ];
     }
 
     const debug: boolean =
@@ -49,24 +64,36 @@ export class SignInService {
     const page = await this.browser.newPage();
 
     try {
+      const results: Array<{
+        message: string;
+        success: boolean;
+      }> = [];
+
       await this.commonService.gotoPage(TIEBA_URL, page);
 
       const pages = await this.browser.pages();
       await pages[0].close();
 
       // 一键签到
-      await this.oneKeySign(page);
+      results.push(await this.oneKeySign(page));
 
       // 签到
-      await this.signIn(page);
+      results.push(await this.signIn(page));
 
       this.logger.log('签到任务完成', {
         duration: Date.now() - startTime,
       });
+      return results;
     } catch (err) {
       this.logger.error('签到任务失败', {
         err,
       });
+      return [
+        {
+          message: '签到任务失败',
+          success: false,
+        },
+      ];
     } finally {
       if (!debug) {
         try {
