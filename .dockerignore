@@ -3,3 +3,5 @@
 **/.env
 **/test
 **/*.md
+LICENSE
+jest.config.js
