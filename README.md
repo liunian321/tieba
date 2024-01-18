@@ -27,6 +27,8 @@
 ## 贴吧签到
 ### 1. 如何运行
     运行 test 文件夹下的 sign.spec.ts 中的 signIn 方法即可
+### 2. 注意事项
+    第一次需要手动登录和修改对应的环境变量(将.env.example复制为.env)
 
 
 ## Installation
