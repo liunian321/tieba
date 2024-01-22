@@ -1,10 +1,7 @@
 import { Injectable, Logger, Scope } from '@nestjs/common';
 import { BrowserService } from '../browser';
 import { ConfigService } from '@nestjs/config';
-import {
-  ONE_KEY_SIGN_RESULT_URL,
-  TIEBA_URL,
-} from '../common/constant/base.constant';
+import { ONE_KEY_SIGN_RESULT_URL, TIEBA_URL } from '../common/constant/base.constant';
 import { CommonService } from '../common/common.service';
 import * as XPATH from '../common/constant/xpath.constant';
 import { delay } from 'bluebird';
@@ -31,8 +28,7 @@ export class SignInService {
   > {
     const startTime = Date.now();
 
-    const accountId: string | undefined =
-      await this.configService.get('accountId');
+    const accountId: string | undefined = await this.configService.get('accountId');
     if (!accountId || accountId == '') {
       this.logger.error('账号id不能为空');
       return [
@@ -43,8 +39,7 @@ export class SignInService {
       ];
     }
 
-    const isLogin =
-      ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
+    const isLogin = ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
     if (!isLogin) {
       this.logger.error('请先手动登录');
       return [
@@ -55,8 +50,7 @@ export class SignInService {
       ];
     }
 
-    const debug: boolean =
-      ((await this.configService.get('DEBUG')) ?? 'false') === 'true';
+    const debug: boolean = ((await this.configService.get('DEBUG')) ?? 'false') === 'true';
 
     this.browser = await this.browserService.launch({
       accountId,
@@ -95,15 +89,19 @@ export class SignInService {
         },
       ];
     } finally {
+      // 如果不是调试模式，关闭所有页面和浏览器
       if (!debug) {
-        try {
-          await page.close();
+        const pages = await this.browser.pages();
+        for (const p of pages) {
+          if (!p.isClosed()) {
+            await p.close();
+          }
+        }
+        if (this.browser && this.browser.connected) {
           await this.browser.close();
           this.logger.log('关闭浏览器成功');
-        } catch (err) {
-          this.logger.error('关闭浏览器失败', {
-            err,
-          });
+        } else {
+          this.logger.warn('浏览器已经关闭');
         }
       }
     }
@@ -126,11 +124,9 @@ export class SignInService {
 
     // 监听一键签到结果
     let oneKeySignResultStr: string | undefined;
-    const oneKeySignResultPromise: Promise<void> = this.commonService
-      .getResponseListenerByUrl(page, ONE_KEY_SIGN_RESULT_URL, 'data')
-      .then((data) => {
-        oneKeySignResultStr = data;
-      });
+    const oneKeySignResultPromise: Promise<void> = this.commonService.getResponseListenerByUrl(page, ONE_KEY_SIGN_RESULT_URL, 'data').then(data => {
+      oneKeySignResultStr = data;
+    });
 
     const element = await this.commonService.clickElementByXPath({
       xpath: XPATH.ONE_KEY_SIGN_START,
@@ -140,11 +136,7 @@ export class SignInService {
 
     if (!element) {
       // 检查是否已经签到过了
-      const signedElement = await this.commonService.waitElementByXPath(
-        XPATH.ONE_KEY_SIGN_SIGNED,
-        page,
-        '一键签到-已经签到',
-      );
+      const signedElement = await this.commonService.waitElementByXPath(XPATH.ONE_KEY_SIGN_SIGNED, page, '一键签到-已经签到');
 
       if (signedElement) {
         this.logger.log('一键签到-已经签到');
@@ -272,10 +264,7 @@ export class SignInService {
 
       await this.commonService.waitForNetwork(newPage);
 
-      const signedElement = await this.commonService.waitElementByXPath(
-        XPATH.SIGN_COMPLETE,
-        newPage,
-      );
+      const signedElement = await this.commonService.waitElementByXPath(XPATH.SIGN_COMPLETE, newPage);
       if (signedElement) {
         this.logger.log('签到已完成');
         await this.closeNewPage(newPage);
@@ -302,8 +291,7 @@ export class SignInService {
     }
 
     return {
-      message:
-        '签到' + (successCount > 0 ? '成功' : '失败') + successCount + '个',
+      message: '签到' + (successCount > 0 ? '成功' : '失败') + successCount + '个',
       success: successCount > 0,
     };
   }
