@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { SignInService } from './serivce/signIn.service';
+import { SignInService } from './signIn/signIn.service';
 
 @Controller('tieba')
 export class AppController {

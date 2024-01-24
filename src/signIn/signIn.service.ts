@@ -69,7 +69,15 @@ export class SignInService {
       await pages[0].close();
 
       // 一键签到
-      results.push(await this.oneKeySign(page));
+      const oneKeySignResult = await this.oneKeySign(page);
+      if (oneKeySignResult.unSigned === 0) {
+        this.logger.log('签到任务完成', {
+          duration: Date.now() - startTime,
+        });
+        return results;
+      }
+
+      results.push(oneKeySignResult);
 
       // 签到
       results.push(await this.signIn(page));
@@ -115,6 +123,7 @@ export class SignInService {
   private async oneKeySign(page: Page): Promise<{
     message: string;
     success: boolean;
+    unSigned: number;
   }> {
     await this.commonService.clickElementByXPath({
       xpath: XPATH.ONE_KEY_SIGN,
@@ -139,7 +148,22 @@ export class SignInService {
       const signedElement = await this.commonService.waitElementByXPath(XPATH.ONE_KEY_SIGN_SIGNED, page, '一键签到-已经签到');
 
       if (signedElement) {
-        this.logger.log('一键签到-已经签到');
+        const texts = await this.commonService.getTextByXPathList(page, [XPATH.ONE_KEY_SIGN_SIGNED_COUNT, XPATH.ONE_KEY_SIGN_UN_SIGN_COUNT]);
+        if (texts.length === 2) {
+          this.logger.log('一键签到-已经签到', {
+            signed: texts[0],
+            unSigned: texts[1],
+          });
+          if (parseInt(texts[1]) === 0) {
+            // 已经签到完成所有吧
+            return {
+              message: '一键签到-已经签到',
+              success: true,
+              unSigned: parseInt(texts[1]),
+            };
+          }
+        }
+
         await page.keyboard.press('Escape');
 
         await this.commonService.clickElementByXPath({
@@ -150,6 +174,7 @@ export class SignInService {
         return {
           message: '一键签到-已经签到',
           success: true,
+          unSigned: -1,
         };
       }
     }
@@ -184,6 +209,7 @@ export class SignInService {
     return {
       message: '一键签到' + (success ? '成功' : '失败'),
       success,
+      unSigned: -1,
     };
   }
 

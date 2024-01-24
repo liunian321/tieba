@@ -31,7 +31,7 @@ export class CommonService {
         timeout: timeout ?? ms('5m'),
       });
     } catch (err) {
-      if (PROXY_FAILED_FLAG_LIST.some((flag) => err.message?.includes(flag))) {
+      if (PROXY_FAILED_FLAG_LIST.some(flag => err.message?.includes(flag))) {
         this.logger.error('代理失效', { err });
         throw new Error('代理失效');
       }
@@ -66,22 +66,14 @@ export class CommonService {
    * @param page
    * @param timeout
    */
-  async waitForNetwork(
-    page: Page,
-    interval?: number,
-    timeout?: number,
-  ): Promise<void> {
+  async waitForNetwork(page: Page, interval?: number, timeout?: number): Promise<void> {
     try {
       const nowTime = now();
 
-      await this.listenResponse(
-        page,
-        typeof interval === 'undefined' ? ms('1s') : interval,
-        nowTime,
-      );
+      await this.listenResponse(page, typeof interval === 'undefined' ? ms('1s') : interval, nowTime);
 
       await Promise.any([
-        new Promise((resolve) => {
+        new Promise(resolve => {
           eventEmitter.on('waitNetworkOver' + nowTime, () => {
             resolve('');
           });
@@ -97,11 +89,7 @@ export class CommonService {
     }
   }
 
-  private async listenResponse(
-    page: Page,
-    interval: number = ms('1s'),
-    key: string | number,
-  ): Promise<void> {
+  private async listenResponse(page: Page, interval: number = ms('1s'), key: string | number): Promise<void> {
     let i = 0;
     let j = 0;
     let hasRequest = false;
@@ -110,9 +98,7 @@ export class CommonService {
       if (
         !blockedContentTypes.includes(request.resourceType()) &&
         !['webSocket'].includes(request.resourceType()) &&
-        !exceptionFlags.some((exceptionURL) =>
-          request.url().includes(exceptionURL),
-        )
+        !exceptionFlags.some(exceptionURL => request.url().includes(exceptionURL))
       ) {
         if (!hasRequest) {
           hasRequest = true;
@@ -126,9 +112,7 @@ export class CommonService {
       if (
         !blockedContentTypes.includes(request.resourceType()) &&
         !['webSocket'].includes(request.resourceType()) &&
-        !exceptionFlags.some((exceptionURL) =>
-          request.url().includes(exceptionURL),
-        )
+        !exceptionFlags.some(exceptionURL => request.url().includes(exceptionURL))
       ) {
         i++;
       }
@@ -167,11 +151,7 @@ export class CommonService {
    * @param url 页面地址
    * @param flag 响应结果包含的关键性标志
    */
-  async getResponseListenerByUrl(
-    browserPage: Page,
-    url?: string,
-    flag?: string,
-  ): Promise<string> {
+  async getResponseListenerByUrl(browserPage: Page, url?: string, flag?: string): Promise<string> {
     const responseHandler = async (response: HTTPResponse): Promise<void> => {
       if (response.status() >= 300 && response.status() < 400) {
         // 重定向的无法获取响应结果
@@ -228,8 +208,8 @@ export class CommonService {
         browserPage.on('response', responseHandler);
       });
 
-      return await new Promise<string>((resolve) => {
-        eventEmitter.on('listenResponseOver' + url ?? '', (result) => {
+      return await new Promise<string>(resolve => {
+        eventEmitter.on('listenResponseOver' + url ?? '', result => {
           resolve(result);
         });
       });
@@ -262,10 +242,7 @@ export class CommonService {
       if (url === undefined) {
         // 如果 url 未定义, 则返回第一个请求结果
         req = request;
-      } else if (
-        request.url().startsWith(url) &&
-        (flag === undefined || request.postData()?.includes(flag))
-      ) {
+      } else if (request.url().startsWith(url) && (flag === undefined || request.postData()?.includes(flag))) {
         req = request;
       }
 
@@ -288,8 +265,8 @@ export class CommonService {
             payload: string | undefined;
           }
         | undefined
-      >((resolve) => {
-        eventEmitter.on('listenRequestOver' + url ?? '', (result) => {
+      >(resolve => {
+        eventEmitter.on('listenRequestOver' + url ?? '', result => {
           resolve(result);
         });
       });
@@ -299,12 +276,7 @@ export class CommonService {
     }
   }
 
-  async inputText(
-    page: Page,
-    text: string,
-    clearDefaults: boolean,
-    needDelay?: boolean,
-  ): Promise<void> {
+  async inputText(page: Page, text: string, clearDefaults: boolean, needDelay?: boolean): Promise<void> {
     if (clearDefaults) {
       await page.keyboard.down('Control');
       await delay(random(50, 100));
@@ -359,9 +331,7 @@ export class CommonService {
 
       if (elementIndex) {
         const elements = await page.$x(xpath);
-        element = elements[
-          elementIndex === -1 ? elements.length - 1 : elementIndex
-        ] as ElementHandle;
+        element = elements[elementIndex === -1 ? elements.length - 1 : elementIndex] as ElementHandle;
       }
 
       // 有的隐藏元素是没有 boundingBox 的
@@ -403,12 +373,7 @@ export class CommonService {
    * @param businessType
    * @param timeout
    */
-  async waitElementByXPath(
-    xpath: string,
-    page: Page,
-    businessType?: string,
-    timeout?: number,
-  ): Promise<ElementHandle<Node> | null> {
+  async waitElementByXPath(xpath: string, page: Page, businessType?: string, timeout?: number): Promise<ElementHandle<Node> | null> {
     try {
       return await page.waitForXPath(xpath, {
         timeout: timeout ?? ms('10s'),
@@ -421,17 +386,10 @@ export class CommonService {
     }
   }
 
-  async uploadFileByBuffer(
-    page: Page,
-    buffer: Buffer,
-    fileName: string,
-    fileType: string,
-  ): Promise<void> {
+  async uploadFileByBuffer(page: Page, buffer: Buffer, fileName: string, fileType: string): Promise<void> {
     await page.evaluate(
       async (bufferFile, bufferFileName, mimeType) => {
-        const inputElement = document.activeElement
-          ?.closest('form')
-          ?.querySelector<HTMLInputElement>('input[type=file]');
+        const inputElement = document.activeElement?.closest('form')?.querySelector<HTMLInputElement>('input[type=file]');
 
         const arrayBuffer = new Int8Array(bufferFile.data);
 
@@ -467,12 +425,7 @@ export class CommonService {
    * @param drop 拖拽到的元素
    * @param input 文件输入框
    */
-  async dragFile(
-    page: Page,
-    filePath: string,
-    drop: ElementHandle<Element>,
-    input?: ElementHandle<HTMLInputElement>,
-  ): Promise<boolean> {
+  async dragFile(page: Page, filePath: string, drop: ElementHandle<Element>, input?: ElementHandle<HTMLInputElement>): Promise<boolean> {
     try {
       if (!input) {
         input = (await page.evaluateHandle(() => {
@@ -548,9 +501,7 @@ export class CommonService {
    * 枚举转Map , key和value包含了枚举的key和value的所有对应关系
    * @param enumObj
    */
-  enumToMap<T extends NonNullable<unknown>>(
-    enumObj: T,
-  ): Map<string, T[Extract<keyof T, string>]> {
+  enumToMap<T extends NonNullable<unknown>>(enumObj: T): Map<string, T[Extract<keyof T, string>]> {
     const map = new Map<string, T[Extract<keyof T, string>]>();
     for (const key in enumObj) {
       if (enumObj.hasOwnProperty(key)) {
@@ -559,5 +510,18 @@ export class CommonService {
       }
     }
     return map;
+  }
+
+  async getTextByXPathList(page: Page, xpathList: string[]): Promise<string[]> {
+    return await page.evaluate(xpathList => {
+      const result: string[] = [];
+      for (const xpath of xpathList) {
+        const element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        if (element) {
+          result.push(element.textContent ?? '');
+        }
+      }
+      return result;
+    }, xpathList);
   }
 }
