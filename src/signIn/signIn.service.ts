@@ -6,19 +6,19 @@ import { CommonService } from '../common/common.service';
 import * as XPATH from '../common/constant/xpath.constant';
 import { delay } from 'bluebird';
 import ms from 'ms';
-import { Browser, ElementHandle, Page } from 'puppeteer';
+import { ElementHandle, Page } from 'puppeteer';
+import { BaseService } from '../common/base.service';
 
 @Injectable({ scope: Scope.REQUEST })
-export class SignInService {
-  private readonly logger: Logger = new Logger(SignInService.name);
-
+export class SignInService extends BaseService {
   constructor(
-    private readonly browserService: BrowserService,
-    private readonly configService: ConfigService,
-    private readonly commonService: CommonService,
-  ) {}
-
-  public browser: Browser;
+    readonly browserService: BrowserService,
+    readonly configService: ConfigService,
+    readonly commonService: CommonService,
+  ) {
+    super(browserService, configService, commonService);
+    this.logger = new Logger(SignInService.name);
+  }
 
   async main(): Promise<
     Array<{
@@ -320,19 +320,5 @@ export class SignInService {
       message: '签到' + (successCount > 0 ? '成功' : '失败') + successCount + '个',
       success: successCount > 0,
     };
-  }
-
-  private async closeNewPage(newPage: Page) {
-    try {
-      await this.commonService.waitForNetwork(newPage);
-      await newPage.close();
-      // this.logger.log('关闭页面成功');
-      return true;
-    } catch (err) {
-      this.logger.error('关闭页面失败', {
-        err,
-      });
-      return false;
-    }
   }
 }
