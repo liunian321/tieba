@@ -1,18 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from '../src/app.controller';
-import { SignInService } from '../src/serivce/signIn.service';
+import { AppController } from '../app.controller';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { BrowserService } from '../src/browser';
+import { BrowserService } from '../browser';
 import { ConfigModule } from '@nestjs/config';
-import { CommonService } from '../src/common/common.service';
+import { CommonService } from '../common/common.service';
 import ms from 'ms';
+import { SignInService } from '../signIn/signIn.service';
 
 describe('AppController', () => {
   let app: INestApplication;
   let signInService: SignInService;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
       controllers: [AppController],
@@ -25,12 +25,12 @@ describe('AppController', () => {
     signInService = moduleRef.get<SignInService>(SignInService);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
   it(
-    'signIn',
+    '签到 应该可以成功',
     async () => {
       const spy = jest.spyOn(signInService, 'main');
       await request(app.getHttpServer()).get('/tieba/signIn');

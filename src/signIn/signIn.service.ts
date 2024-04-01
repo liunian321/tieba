@@ -28,7 +28,7 @@ export class SignInService extends BaseService {
   > {
     const startTime = Date.now();
 
-    const accountId: string | undefined = await this.configService.get('accountId');
+    const accountId: string | undefined = await this.configService.get('ACCOUNT_ID');
     if (!accountId || accountId == '') {
       this.logger.error('账号id不能为空');
       return [
@@ -41,7 +41,9 @@ export class SignInService extends BaseService {
 
     const isLogin = ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
     if (!isLogin) {
-      this.logger.error('请先手动登录');
+      this.logger.error('请先手动登录后，将浏览器关闭');
+      await delay(ms('15m'));
+
       return [
         {
           message: '请先手动登录',
