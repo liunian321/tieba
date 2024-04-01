@@ -29,7 +29,6 @@ export class BrowserService {
           ? false
           : this.configService.get('HEADLESS')
       : false;
-    console.log('headless', headless);
 
     // 启动浏览器实例，并设置 UA 和代理
     return typeof browserEndpoint !== 'undefined'
