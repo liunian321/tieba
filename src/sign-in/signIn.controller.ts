@@ -1,7 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Scope } from '@nestjs/common';
 import { SignInService } from './signIn.service';
 
-@Controller('signIn')
+@Controller({path:'signIn',scope:Scope.REQUEST})
 export class SignInController {
   constructor(private readonly signInService: SignInService) {}
 

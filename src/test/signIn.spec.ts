@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { BrowserModule, BrowserService } from '../browser';
+import { BrowserModule } from '../browser';
 import { ConfigModule } from '@nestjs/config';
 import ms from 'ms';
-import { SignInService } from '../signIn/signIn.service';
-import { SignInModule } from '../signIn/signIn.module';
 import { CommonModule } from '../common/common.module';
+import { SignInService } from '../sign-in/signIn.service';
+import { SignInModule } from '../sign-in/signIn.module';
 
 describe('AppController', () => {
   let app: INestApplication;

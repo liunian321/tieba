@@ -53,10 +53,7 @@ export class SignInService extends BaseService {
         success: boolean;
       }> = [];
 
-      await this.commonService.gotoPage(TIEBA_URL, page);
-
-      const pages = await this.browser.pages();
-      await pages[0].close();
+      await this.commonService.gotoPage({ url: TIEBA_URL });
 
       const isLogin = ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
       if (!isLogin) {
@@ -131,27 +128,40 @@ export class SignInService extends BaseService {
     await this.commonService.clickElementByXPath({
       xpath: XPATH.ONE_KEY_SIGN,
       page,
-      businessType: '一键签到',
+      operationType: '一键签到',
     });
 
     // 监听一键签到结果
     let oneKeySignResultStr: string | undefined;
-    const oneKeySignResultPromise: Promise<void> = this.commonService.getResponseListenerByUrl(page, ONE_KEY_SIGN_RESULT_URL, 'data').then(data => {
-      oneKeySignResultStr = data;
-    });
+    const oneKeySignResultPromise: Promise<void> = this.commonService
+      .getResponseListenerByUrl({
+        page,
+        url: ONE_KEY_SIGN_RESULT_URL,
+        flag: 'data',
+      })
+      .then(data => {
+        oneKeySignResultStr = data;
+      });
 
     const element = await this.commonService.clickElementByXPath({
       xpath: XPATH.ONE_KEY_SIGN_START,
       page,
-      businessType: '一键签到-开始签到',
+      operationType: '一键签到-开始签到',
     });
 
     if (!element) {
       // 检查是否已经签到过了
-      const signedElement = await this.commonService.waitElementByXPath(XPATH.ONE_KEY_SIGN_SIGNED, page, '一键签到-已经签到');
+      const signedElement = await this.commonService.waitElementByXPath({
+        xpath: XPATH.ONE_KEY_SIGN_SIGNED,
+        page,
+        operationType: '一键签到-已经签到',
+      });
 
       if (signedElement) {
-        const texts = await this.commonService.getTextByXPathList(page, [XPATH.ONE_KEY_SIGN_SIGNED_COUNT, XPATH.ONE_KEY_SIGN_UN_SIGN_COUNT]);
+        const texts = await this.commonService.getTextByXPathList({
+          page,
+          xpathList: [XPATH.ONE_KEY_SIGN_SIGNED_COUNT, XPATH.ONE_KEY_SIGN_UN_SIGN_COUNT],
+        });
         if (texts.length === 2) {
           this.logger.log('一键签到-已经签到', {
             signed: texts[0],
@@ -172,7 +182,7 @@ export class SignInService extends BaseService {
         await this.commonService.clickElementByXPath({
           xpath: XPATH.ONE_KEY_SIGN_CLOSE,
           page,
-          businessType: '关闭一键签到弹窗',
+          operationType: '关闭一键签到弹窗',
         });
         return {
           message: '一键签到-已经签到',
@@ -233,7 +243,7 @@ export class SignInService extends BaseService {
         element = await this.commonService.clickElementByXPath({
           xpath: XPATH.RECENTLY_BAR_UN_SIGN,
           page,
-          businessType: '签到',
+          operationType: '签到',
           elementIndex: loveBarClickCount,
         });
         if (!element) {
@@ -256,7 +266,7 @@ export class SignInService extends BaseService {
           element = await this.commonService.clickElementByXPath({
             xpath: XPATH.UN_SIGN_BAR,
             page,
-            businessType: '签到',
+            operationType: '签到',
             elementIndex: followBarClickCount,
           });
 
@@ -293,7 +303,10 @@ export class SignInService extends BaseService {
 
       await this.commonService.waitForNetwork(newPage);
 
-      const signedElement = await this.commonService.waitElementByXPath(XPATH.SIGN_COMPLETE, newPage);
+      const signedElement = await this.commonService.waitElementByXPath({
+        xpath: XPATH.SIGN_COMPLETE,
+        page: newPage,
+      });
       if (signedElement) {
         this.logger.log('签到已完成');
         await this.closeNewPage(newPage);

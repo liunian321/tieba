@@ -1,34 +1,88 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { now } from 'moment';
-import { ElementHandle, HTTPRequest, HTTPResponse, Page } from 'puppeteer';
+import { Injectable, Logger, Scope } from '@nestjs/common';
+import moment from 'moment';
+import { Browser, ElementHandle, HTTPRequest, HTTPResponse, Page } from 'puppeteer';
 import { ConfigService } from '@nestjs/config';
 import ms from 'ms';
 import { PROXY_FAILED_FLAG_LIST } from './constant/error.constant';
-import { blockedContentTypes, exceptionFlags } from './constant/block.constant';
+import { blockedContentTypes } from './constant/block.constant';
 import { EventEmitter } from 'events';
 import { delay } from 'bluebird';
-import { random } from 'lodash';
+import { isEmpty, random } from 'lodash';
+import { BrowserService } from '../browser';
+import { randomUUID } from 'crypto';
+import { EXCEPTION_URLS, IMAGE_QUALITY, PROJECT_NAME, SAVE_IMAGE_FORMAT } from './constant/base.constant';
+import * as fs from 'node:fs/promises';
 
 const eventEmitter = new EventEmitter();
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class CommonService {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly browserService: BrowserService,
+  ) {}
+
+  browser!: Browser;
+
+  browserPages!: Page[];
+
   private readonly logger: Logger = new Logger(CommonService.name);
-  constructor(private readonly configService: ConfigService) {}
+
+  /**
+   * 启动浏览器
+   * @param id
+   */
+  async startBrowser(id: string): Promise<Browser> {
+    try {
+      // 如果浏览器未启动或者已经关闭,则重新启动浏览器
+      if (isEmpty(this.browser) || isEmpty(this.browserPages) || !this.browser.connected) {
+        this.browser = await this.browserService.launch({
+          accountId: id,
+        });
+
+        this.browserPages = await this.browser.pages();
+        if (this.browserPages.length === 0) {
+          this.browserPages.push((await this.newPage()).page);
+        }
+      }
+
+      return this.browser;
+    } catch (err) {
+      switch (err.message) {
+        case err.message.includes('429'):
+          this.logger.error('浏览器已被限流');
+          throw new Error('浏览器已被限流');
+        default:
+          this.logger.error('启动浏览器失败', { err });
+          throw new Error('启动浏览器失败');
+      }
+    }
+  }
+
+  /**
+   * 创建新页面
+   */
+  async newPage(): Promise<{ page: Page; pageIndex: number }> {
+    const browserPage = await this.browser.newPage();
+    this.browserPages.push(browserPage);
+    this.logger.log('创建新页面成功');
+    return {
+      page: browserPage,
+      pageIndex: this.browserPages.length - 1,
+    };
+  }
 
   /**
    * 跳转页面
-   * @param url 页面地址
-   * @param page
-   * @param timeout 超时时间
+   * @param data
    */
-  async gotoPage(url: string, page: Page, timeout?: number): Promise<void> {
+  async gotoPage(data: { url: string; page?: Page; timeout?: number }): Promise<void> {
     let response: HTTPResponse | null = null;
-    const gotoPageStartTime = Date.now();
+    const startTime = Date.now();
     try {
-      response = await page.goto(url, {
+      response = await (data.page ?? this.browserPages[0]).goto(data.url, {
         waitUntil: 'load',
-        timeout: timeout ?? ms('5m'),
+        timeout: data.timeout ?? ms('5m'),
       });
     } catch (err) {
       if (PROXY_FAILED_FLAG_LIST.some(flag => err.message?.includes(flag))) {
@@ -41,12 +95,14 @@ export class CommonService {
         throw new Error('跳转页面超时');
       }
 
-      this.logger.error(err.message ?? '打开页面失败', { err });
-      throw new Error('打开页面失败');
+      const arr = data.url.split('//');
+
+      this.logger.error(err.message ?? '打开页面失败', { failedUrl: arr.length > 1 ? arr[1] : data.url, err });
+
+      throw new Error(err.message ?? '打开页面失败');
     }
 
     if (response === null) {
-      this.logger.error('跳转页面超时');
       throw new Error('跳转页面超时');
     }
 
@@ -56,32 +112,46 @@ export class CommonService {
     }
 
     this.logger.log('跳转页面成功', {
-      gotoPageTime: Date.now() - gotoPageStartTime,
+      gotoPageTime: Date.now() - startTime,
     });
+
+    // 目前发现打开浏览器时会有一个空白页面, 所以这里判断如果页面数量大于1, 则关闭第一个空白页面
+    if (this.browserPages.length > 1) {
+      await this.browserPages[0].close();
+    }
   }
 
   /**
    * 如果当前页面在规定时间内没有请求和响应则返回
-   * @param interval
    * @param page
-   * @param timeout
+   * @param interval
    */
-  async waitForNetwork(page: Page, interval?: number, timeout?: number): Promise<void> {
-    try {
-      const nowTime = now();
+  async waitForNetwork(page?: Page, interval?: number): Promise<void> {
+    if (page === undefined) {
+      if (this.browserPages[0] === undefined) {
+        return;
+      }
+      page = this.browserPages[0];
+    }
 
-      await this.listenResponse(page, typeof interval === 'undefined' ? ms('1s') : interval, nowTime);
+    const id = randomUUID();
+    const key = 'waitNetworkOver:' + id;
+    interval = interval ?? ms('1.5s');
+
+    try {
+      await this.listenResponse(page, interval, key);
 
       await Promise.any([
         new Promise(resolve => {
-          eventEmitter.on('waitNetworkOver' + nowTime, () => {
+          eventEmitter.on(key, () => {
             resolve('');
           });
         }),
-        timeout ?? delay(ms('30s')),
+        delay(ms('30s')),
       ]);
 
-      eventEmitter.removeAllListeners('waitNetworkOver' + nowTime);
+      eventEmitter.removeAllListeners(key);
+      await delay(interval ?? ms('1s'));
     } catch (err) {
       if (this.configService.get('DEBUG') === 'true') {
         this.logger.error('等待网络失败', { err });
@@ -89,46 +159,43 @@ export class CommonService {
     }
   }
 
-  private async listenResponse(page: Page, interval: number = ms('1s'), key: string | number): Promise<void> {
+  private async listenResponse(page: Page, interval: number = ms('1s'), key: string) {
     let i = 0;
     let j = 0;
-    let hasRequest = false;
+    let retryCount = 0;
     const startTime = Date.now();
-    const requestHandler = (request: HTTPRequest): void => {
+    const requestHandler = (request: HTTPRequest) => {
       if (
         !blockedContentTypes.includes(request.resourceType()) &&
-        !['webSocket'].includes(request.resourceType()) &&
-        !exceptionFlags.some(exceptionURL => request.url().includes(exceptionURL))
-      ) {
-        if (!hasRequest) {
-          hasRequest = true;
-        }
-        i--;
-      }
-    };
-
-    const responseHandler = (response: HTTPResponse): void => {
-      const request = response.request();
-      if (
-        !blockedContentTypes.includes(request.resourceType()) &&
-        !['webSocket'].includes(request.resourceType()) &&
-        !exceptionFlags.some(exceptionURL => request.url().includes(exceptionURL))
+        !['other', 'webSocket'].includes(request.resourceType()) &&
+        !EXCEPTION_URLS.some(exceptionURL => request.url().includes(exceptionURL))
       ) {
         i++;
       }
     };
 
-    new Promise<string>((): void => {
+    const responseHandler = (response: HTTPResponse) => {
+      const request = response.request();
+      if (
+        !blockedContentTypes.includes(request.resourceType()) &&
+        !['webSocket', 'other'].includes(request.resourceType()) &&
+        !EXCEPTION_URLS.some(exceptionURL => request.url().includes(exceptionURL))
+      ) {
+        j++;
+      }
+    };
+
+    new Promise<string>(() => {
       page.on('request', requestHandler);
     });
 
-    new Promise<string>((): void => {
+    new Promise<string>(() => {
       page.on('response', responseHandler);
     });
 
-    const obj = setInterval((): void => {
-      if ((i <= 0 && j > 1) || (!hasRequest && j > 0)) {
-        // 如果 连续两次单位时间内没有请求或者响应, 则返回
+    const obj = setInterval(() => {
+      if ((j - i <= 0 && retryCount > 1) || (i === 0 && j === 0 && retryCount > 0)) {
+        // 如果 连续 2 次单位时间内没有请求或者响应, 则返回  如果 3 次循环后响应数大于或者等于请求数, 则返回
         clearInterval(obj);
 
         page.off('request', requestHandler);
@@ -138,62 +205,64 @@ export class CommonService {
           console.log('等待网络结束: ' + (Date.now() - startTime) + 'ms');
         }
 
-        eventEmitter.emit('waitNetworkOver' + key, 'waitNetworkOver');
+        eventEmitter.emit(key, 'OVER');
       } else {
-        j++;
+        retryCount++;
       }
     }, interval);
   }
 
   /**
    * 根据所提供的 url 获取一个响应监听器(注意：如果一直没有符合的响应,它会一直阻塞下去)
-   * @param browserPage
-   * @param url 页面地址
-   * @param flag 响应结果包含的关键性标志
+   * @param data
    */
-  async getResponseListenerByUrl(browserPage: Page, url?: string, flag?: string): Promise<string> {
+  async getResponseListenerByUrl(data: { page?: Page; url?: string; flag?: string }): Promise<string> {
+    if (!data.page) {
+      data.page = this.browserPages[0];
+    }
+
     const responseHandler = async (response: HTTPResponse): Promise<void> => {
       if (response.status() >= 300 && response.status() < 400) {
         // 重定向的无法获取响应结果
-        eventEmitter.emit('listenResponseOver' + url ?? '', '');
+        eventEmitter.emit('listenResponseOver' + data.url ?? '', '');
       }
 
-      if (url === undefined) {
+      if (data.url === undefined) {
         // 如果 url 未定义, 则返回第一个响应结果
         try {
           eventEmitter.emit('listenResponseOver', await response.text());
         } catch (err) {
           eventEmitter.emit('listenResponseOver', '');
         }
-      } else if (response.url().startsWith(url)) {
+      } else if (response.url().startsWith(data.url)) {
         let text = '';
         try {
           text = await response.text();
         } catch (err) {
           // 如果没有指定 flag, 并且响应结果为空, 则返回空字符串
-          if (flag === undefined) {
-            eventEmitter.emit('listenResponseOver' + url ?? '', '');
+          if (data.flag === undefined) {
+            eventEmitter.emit('listenResponseOver' + data.url ?? '', '');
           }
         }
 
-        if (flag === undefined || text.includes(flag)) {
+        if (data.flag === undefined || text.includes(data.flag)) {
           try {
             JSON.parse(text);
             try {
-              eventEmitter.emit('listenResponseOver' + url ?? '', text);
+              eventEmitter.emit('listenResponseOver' + data.url ?? '', text);
             } catch (err) {
               this.logger.error('发送数据失败', { err });
-              eventEmitter.emit('listenResponseOver' + url ?? '', '');
+              eventEmitter.emit('listenResponseOver' + data.url ?? '', '');
             }
           } catch (err) {
             try {
               text = text.replace('for (;;);', '');
               JSON.parse(text);
               try {
-                eventEmitter.emit('listenResponseOver' + url ?? '', text);
+                eventEmitter.emit('listenResponseOver' + data.url ?? '', text);
               } catch (err) {
                 this.logger.error('发送数据失败', { err });
-                eventEmitter.emit('listenResponseOver' + url ?? '', '');
+                eventEmitter.emit('listenResponseOver' + data.url ?? '', '');
               }
             } catch (err) {
               this.logger.error('响应结果不是JSON格式', { text });
@@ -205,17 +274,17 @@ export class CommonService {
 
     try {
       new Promise<void>(() => {
-        browserPage.on('response', responseHandler);
+        data.page!.on('response', responseHandler);
       });
 
       return await new Promise<string>(resolve => {
-        eventEmitter.on('listenResponseOver' + url ?? '', result => {
+        eventEmitter.on('listenResponseOver' + data.url ?? '', result => {
           resolve(result);
         });
       });
     } finally {
-      browserPage.off('response', responseHandler);
-      eventEmitter.removeAllListeners('listenResponseOver' + url ?? '');
+      data.page.off('response', responseHandler);
+      eventEmitter.removeAllListeners('listenResponseOver' + data.url ?? '');
     }
   }
 
@@ -300,47 +369,96 @@ export class CommonService {
     await page.keyboard.type(text, options);
   }
 
+  async screenshot({
+    type,
+    customImgBuffer,
+    id,
+    imageFormat,
+    imageQuality,
+    fullPage,
+  }: {
+    type?: string;
+    customImgBuffer?: Buffer;
+    id?: string;
+    imageFormat?: 'png' | 'jpeg' | 'webp';
+    imageQuality?: number;
+    fullPage?: boolean;
+  }): Promise<void> {
+    const browserPage = this.browserPages[0];
+
+    if (typeof browserPage === 'undefined' || typeof type === 'undefined') {
+      return;
+    }
+
+    const currentDate = moment();
+    const fileName = `${PROJECT_NAME}/${currentDate.format('YYYY')}/${currentDate.format('MM')}/${currentDate.format('DD')}/${type}/${id ?? randomUUID()}`;
+
+    try {
+      let pageImage: Buffer | undefined;
+      if (!customImgBuffer) {
+        this.logger.log('使用浏览器截图');
+        pageImage = await browserPage.screenshot({
+          type: typeof imageFormat === 'undefined' ? SAVE_IMAGE_FORMAT : imageFormat,
+          quality: typeof imageQuality === 'undefined' ? IMAGE_QUALITY : imageQuality,
+          fullPage: fullPage ?? false,
+        });
+      } else {
+        this.logger.log('使用自定义图片');
+        pageImage = customImgBuffer;
+      }
+
+      if (pageImage !== undefined) {
+        // 将图片保存到本地
+        const path = this.configService.get<string>('SCREENSHOT_PATH', './public');
+
+        // 分隔符
+        let separator = '/';
+        if (path.includes('\\')) {
+          separator = '\\';
+        }
+
+        await fs.writeFile(`${path}${separator}${fileName}.${SAVE_IMAGE_FORMAT}`, pageImage);
+      } else {
+        this.logger.error('pageImage为空');
+      }
+    } catch (err) {
+      this.logger.error('截图上传失败', { err });
+    }
+  }
+
   /**
    * 根据 XPath 点击元素
-   * @param xpath 点击元素的 XPath
-   * @param page
-   * @param businessType 点击元素的业务类型
-   * @param elementIndex 点击第几个元素(从 0 开始)
-   * @param timeout
-   * @param scroll
+   * @param data
    */
-  async clickElementByXPath({
-    xpath,
-    page,
-    businessType,
-    elementIndex,
-    timeout,
-    scroll,
-  }: {
+  async clickElementByXPath(data: {
     xpath: string;
-    page: Page;
-    businessType?: string;
+    page?: Page;
+    operationType?: string;
     elementIndex?: number;
     timeout?: number;
     scroll?: boolean;
   }): Promise<ElementHandle | undefined> {
     try {
-      let element: ElementHandle = (await page.waitForXPath(xpath, {
-        timeout: timeout ?? ms('5s'),
+      if (isEmpty(data.page)) {
+        data.page = this.browserPages[0];
+      }
+
+      let element: ElementHandle = (await data.page.waitForXPath(data.xpath, {
+        timeout: data.timeout ?? ms('5s'),
       })) as ElementHandle;
 
-      if (elementIndex) {
-        const elements = await page.$x(xpath);
-        element = elements[elementIndex === -1 ? elements.length - 1 : elementIndex] as ElementHandle;
+      if (data.elementIndex) {
+        const elements = await data.page.$x(data.xpath);
+        element = elements[data.elementIndex === -1 ? elements.length - 1 : data.elementIndex] as ElementHandle;
       }
 
       // 有的隐藏元素是没有 boundingBox 的
-      if (scroll) {
+      if (data.scroll) {
         try {
           // 将屏幕滚动到元素中间位置
           const boundingBox = await element.boundingBox();
           if (boundingBox) {
-            await page.mouse.wheel({
+            await data.page.mouse.wheel({
               deltaY: boundingBox.y - 200,
             });
             await delay(ms('1s'));
@@ -355,33 +473,32 @@ export class CommonService {
       if (this.configService.get('DEBUG') === 'true') {
         console.log(err);
       }
-      if (businessType && this.configService.get('DEBUG') !== 'true') {
-        this.logger.warn(businessType + '点击元素失败');
-        // this.logger.assign({
-        //   clickErrorType: businessType,
-        // });
+      if (data.operationType && this.configService.get('DEBUG') !== 'true') {
+        this.logger.warn(data.operationType + '点击元素失败');
       } else {
-        this.logger.log(businessType + '点击元素失败');
+        this.logger.log(data.operationType + '点击元素失败');
       }
     }
   }
 
   /**
    * 根据 XPath 等待元素
-   * @param xpath
-   * @param page
-   * @param businessType
-   * @param timeout
+   * @param data
    */
-  async waitElementByXPath(xpath: string, page: Page, businessType?: string, timeout?: number): Promise<ElementHandle<Node> | null> {
+  async waitElementByXPath(data: { xpath: string; page?: Page; operationType?: string; timeout?: number }): Promise<ElementHandle<Node> | null> {
     try {
-      return await page.waitForXPath(xpath, {
-        timeout: timeout ?? ms('10s'),
+      if (isEmpty(data.page)) {
+        data.page = this.browserPages[0];
+      }
+
+      return await data.page.waitForXPath(data.xpath, {
+        timeout: data.timeout ?? ms('10s'),
       });
     } catch (err) {
-      if (businessType) {
-        this.logger.warn(businessType + '等待元素失败');
+      if (data.operationType) {
+        this.logger.warn(data.operationType + '等待元素失败');
       }
+
       return null;
     }
   }
@@ -512,16 +629,31 @@ export class CommonService {
     return map;
   }
 
-  async getTextByXPathList(page: Page, xpathList: string[]): Promise<string[]> {
-    return await page.evaluate(xpathList => {
+  async getTextByXPathList(data: { page?: Page; xpathList: string[] }): Promise<string[]> {
+    if (isEmpty(data.page)) {
+      data.page = this.browserPages[0];
+    }
+
+    return await data.page.evaluate(xpathList => {
       const result: string[] = [];
       for (const xpath of xpathList) {
         const element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+
         if (element) {
           result.push(element.textContent ?? '');
         }
       }
       return result;
-    }, xpathList);
+    }, data.xpathList);
+  }
+
+  async closeBrowser() {
+    try {
+      if (this.browser) {
+        await this.browser.close();
+      }
+    } catch (err) {
+      this.logger.error('关闭浏览器失败', { err });
+    }
   }
 }

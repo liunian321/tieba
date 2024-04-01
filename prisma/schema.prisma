@@ -26,12 +26,15 @@ model Account {
 model User {
   id           Int           @id @default(autoincrement())
   userId       String        @unique
+  // 肖像
+  portrait     String?
+  // 昵称
   name         String
   // 吧龄
-  barAge       Int?          @default(0)
+  barAge       Float?          @default(0)
   // 性别
   gender       String?       @default("未知")
-  // 发帖数量
+  // 发贴数量
   postCount    Int?          @default(0)
   // IP归属地
   ipLocation   String?
@@ -39,7 +42,7 @@ model User {
   followedBars FollowedBar[] @relation(name: "FollowedBarUser")
   // 账户（只有是自己的账号才会有account）
   account      Account?
-  // 发布的帖子
+  // 发布的贴子
   posts        Post[]
   // 发布的评论
   comments     Comment[]
@@ -75,7 +78,7 @@ model Comment {
   // 发布人
   user      User     @relation(fields: [userId], references: [id])
   userId    Int
-  // 发布的帖子
+  // 发布的贴子
   post      Post     @relation(fields: [postId], references: [id])
   postId    Int
   // 评论下的回复
@@ -124,7 +127,7 @@ model Bar {
   name         String        @unique
   // 关注人数
   followed     Int
-  // 帖子数
+  // 贴子数
   postCount    Int
   barType      BarType       @relation(fields: [barTypeId], references: [id])
   barTypeId    Int
