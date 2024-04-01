@@ -27,8 +27,10 @@ export class BarService extends BaseService {
    * 收集个人信息
    */
   async collectPersonalInformation(id: string): Promise<User | null> {
+    const debug: boolean = ((await this.configService.get('DEBUG')) ?? 'false') === 'true';
     try {
       this.logger.log('开始收集个人信息');
+
       const browser = await this.commonService.startBrowser(id);
 
       // 由于目前不清楚home页面的url参数中id的含义，所以暂时通过手动操作进入我的主页
@@ -118,7 +120,15 @@ export class BarService extends BaseService {
       this.logger.error('收集个人信息失败', { err });
       return null;
     } finally {
-      // void this.commonService.closeBrowser();
+      // 如果不是调试模式，关闭所有页面和浏览器
+      if (!debug) {
+        if (this.browser && this.browser.connected) {
+          await this.browser.close();
+          this.logger.log('关闭浏览器成功');
+        } else {
+          this.logger.warn('浏览器已经关闭');
+        }
+      }
     }
   }
 }

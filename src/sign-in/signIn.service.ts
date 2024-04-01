@@ -99,12 +99,6 @@ export class SignInService extends BaseService {
     } finally {
       // 如果不是调试模式，关闭所有页面和浏览器
       if (!debug) {
-        const pages = await this.browser.pages();
-        for (const p of pages) {
-          if (!p.isClosed()) {
-            await p.close();
-          }
-        }
         if (this.browser && this.browser.connected) {
           await this.browser.close();
           this.logger.log('关闭浏览器成功');
