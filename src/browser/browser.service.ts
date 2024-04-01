@@ -15,17 +15,10 @@ export class BrowserService {
   async launch({ accountId }: { accountId: string }): Promise<Browser> {
     const browserEndpoint = this.configService.get('BROWSER_ENDPOINT');
 
-    const windowWidth = this.configService.get('WINDOW_WIDTH')
-      ? parseInt(this.configService.get('WINDOW_WIDTH') ?? '2560')
-      : 2560;
-    const windowHeight = this.configService.get('WINDOW_HEIGHT')
-      ? parseInt(this.configService.get('WINDOW_HEIGHT') ?? '1440')
-      : 1440;
+    const windowWidth = this.configService.get('WINDOW_WIDTH') ? parseInt(this.configService.get('WINDOW_WIDTH') ?? '2560') : 2560;
+    const windowHeight = this.configService.get('WINDOW_HEIGHT') ? parseInt(this.configService.get('WINDOW_HEIGHT') ?? '1440') : 1440;
 
-    const userDataDir = `${this.configService.get<string>(
-      'LOCAL_PUPPETEER_DATA_DIR',
-      './data',
-    )}${PROJECT_NAME}${
+    const userDataDir = `${this.configService.get<string>('LOCAL_PUPPETEER_DATA_DIR', './data')}${PROJECT_NAME}${
       this.configService.get('WINDOWS') === 'true' ? '\\' : '/'
     }${accountId}`;
 
@@ -36,6 +29,7 @@ export class BrowserService {
           ? false
           : this.configService.get('HEADLESS')
       : false;
+    console.log('headless', headless);
 
     // 启动浏览器实例，并设置 UA 和代理
     return typeof browserEndpoint !== 'undefined'
@@ -47,10 +41,7 @@ export class BrowserService {
             // url.searchParams.set('timeout', `${timeout}`);
             url.searchParams.set('--disable-notifications', 'true');
             // url.searchParams.set('--user-agent', userAgent);
-            url.searchParams.set(
-              '--window-size',
-              `${windowWidth},${windowHeight}`,
-            );
+            url.searchParams.set('--window-size', `${windowWidth},${windowHeight}`);
 
             url.searchParams.set('--disable-logging', 'true');
             url.searchParams.set('--aggressive-cache-discard', 'true');

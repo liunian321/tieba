@@ -1,11 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
-import { SignInService } from './signIn/signIn.service';
+import { SignInService } from './signIn.service';
 
-@Controller('tieba')
-export class AppController {
+@Controller('signIn')
+export class SignInController {
   constructor(private readonly signInService: SignInService) {}
 
-  @Get('signIn')
+  @Get()
   async signIn(): Promise<void> {
     await this.signInService.main();
   }

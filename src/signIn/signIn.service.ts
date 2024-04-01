@@ -28,25 +28,13 @@ export class SignInService extends BaseService {
   > {
     const startTime = Date.now();
 
+    // TODO:后续改成从数据库中或者已经保存的账号密码进行登录或者返回登录二维码进行扫码登录
     const accountId: string | undefined = await this.configService.get('ACCOUNT_ID');
     if (!accountId || accountId == '') {
       this.logger.error('账号id不能为空');
       return [
         {
           message: '账号id不能为空',
-          success: false,
-        },
-      ];
-    }
-
-    const isLogin = ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
-    if (!isLogin) {
-      this.logger.error('请先手动登录后，将浏览器关闭');
-      await delay(ms('15m'));
-
-      return [
-        {
-          message: '请先手动登录',
           success: false,
         },
       ];
@@ -69,6 +57,19 @@ export class SignInService extends BaseService {
 
       const pages = await this.browser.pages();
       await pages[0].close();
+
+      const isLogin = ((await this.configService.get('IS_LOGIN')) ?? 'false') === 'true';
+      if (!isLogin) {
+        this.logger.error('请先手动登录后，将浏览器关闭');
+        await delay(ms('15m'));
+
+        return [
+          {
+            message: '请先手动登录',
+            success: false,
+          },
+        ];
+      }
 
       // 一键签到
       const oneKeySignResult = await this.oneKeySign(page);

@@ -10,9 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Account {
+  id        Int      @id @default(autoincrement())
+  // 用户名
+  username  String   @unique
+  // 密码
+  password  String
+  // 用户
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id           Int           @id @default(autoincrement())
-  name         String        @unique
+  userId       String        @unique
+  name         String
   // 吧龄
   barAge       Int?          @default(0)
   // 性别
@@ -23,6 +37,8 @@ model User {
   ipLocation   String?
   // 关注的吧
   followedBars FollowedBar[] @relation(name: "FollowedBarUser")
+  // 账户（只有是自己的账号才会有account）
+  account      Account?
   // 发布的帖子
   posts        Post[]
   // 发布的评论
