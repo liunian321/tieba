@@ -28,7 +28,7 @@ describe('AppController', () => {
   });
 
   it(
-    '签到 应该可以成功',
+    '签到',
     async () => {
       const spy = jest.spyOn(signInService, 'main');
       await request(app.getHttpServer()).get('/signIn');

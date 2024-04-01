@@ -23,7 +23,7 @@ describe('BarService', () => {
   });
 
   it(
-    '应该收集数据成功',
+    '收集个人数据',
     async () => {
       const accountId = configService.get<string>('ACCOUNT_ID');
       if (!accountId) {

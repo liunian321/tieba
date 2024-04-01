@@ -3,6 +3,7 @@
 </p>
 
 [circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+
 [circleci-url]: https://circleci.com/gh/nestjs/nest
 
   <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
@@ -24,12 +25,46 @@
 
 ## Description
 
+## 提示
+
+#### 1. 请确保您的电脑上已经安装了 nodejs 和 yarn
+
+#### 2. 请确保您有Linux环境，并且已经安装了 docker 和 docker-compose
+
+#### 3.项目开始运行前请确保执行了
+
+```bash
+$ yarn install
+```
+
+#### 4.复制.env.example文件到同一目录下并重命名为.env，根据自身情况修改其中的环境变量
+
+#### 5.如果使用到了收集数据功能，或者更新了本项目。请确保执行了
+将database 目录下的 docker-compose.yml 复制到 Linux 环境下，并执行
+```bash
+$ sudo docker-compose up -d
+```
+执行以下命令，检查容器是否创建成功
+```bash
+$ sudo docker ps
+```
+在项目根目录下执行以下命令，创建数据库（记得填写正确的数据库链接地址）
+```bash
+$ prisma db push
+# 当使用 prisma db push 命令时，请确保您注意并理解命令执行后的提示消息，不当的操作可能会导致数据库数据丢失
+```
+
 ## 贴吧签到
+
 ### 1. 如何运行
-    运行 test 文件夹下的 sign.spec.ts 中的 signIn 方法即可
-### 2. 注意事项
-    由于没有您的账号和密码，第一次需要手动登录再关闭浏览器。再修改对应的环境变量(将.env.example复制到同一目录下重命名为.env)
-    当使用 prisma db push 命令时，请确保您注意并理解命令执行后的提示消息，不当的操作可能会导致数据库数据丢失
+
+    运行 test 文件夹下的 sign.spec.ts 中的 签到 方法即可
+
+## 贴吧数据收集
+
+### 1. 如何运行
+
+    运行 test 文件夹下的 bar.spec.ts 中的 收集个人数据 方法即可
 
 ## Installation
 
@@ -62,17 +97,3 @@ $ yarn run test:e2e
 # test coverage
 $ yarn run test:cov
 ```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
