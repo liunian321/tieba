@@ -443,12 +443,12 @@ export class CommonService {
         data.page = this.browserPages[0];
       }
 
-      let element: ElementHandle = (await data.page.waitForXPath(data.xpath, {
+      let element: ElementHandle = (await data.page.waitForSelector('xpath/' + data.xpath, {
         timeout: data.timeout ?? ms('5s'),
       })) as ElementHandle;
 
       if (data.elementIndex) {
-        const elements = await data.page.$x(data.xpath);
+        const elements = await data.page?.$$('xpath/' + data.xpath);
         element = elements[data.elementIndex === -1 ? elements.length - 1 : data.elementIndex] as ElementHandle;
       }
 
@@ -491,7 +491,7 @@ export class CommonService {
         data.page = this.browserPages[0];
       }
 
-      return await data.page.waitForXPath(data.xpath, {
+      return await data.page?.waitForSelector('xpath/' + data.xpath, {
         timeout: data.timeout ?? ms('10s'),
       });
     } catch (err) {

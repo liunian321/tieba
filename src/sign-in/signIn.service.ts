@@ -251,7 +251,7 @@ export class SignInService extends BaseService {
       if (isSignComplete) {
         // 查看更多
         try {
-          const viewMoreElement = await page.waitForXPath(XPATH.VIEW_MORE, {
+          const viewMoreElement = await page.waitForSelector('xpath/' + XPATH.VIEW_MORE, {
             timeout: ms('10s'),
           });
 

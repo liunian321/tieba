@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,135 +8,100 @@ datasource db {
 }
 
 model Account {
-  id        Int      @id @default(autoincrement())
-  // 用户名
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   username  String   @unique
-  // 密码
   password  String
-  // 用户
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int      @unique
+  userId    String   @unique
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime? @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  userId       String        @unique
-  // 肖像
-  portrait     String?
-  // 昵称
+  id           String        @id @default(dbgenerated("gen_random_uuid()"))
   name         String
-  // 吧龄
-  barAge       Float?          @default(0)
-  // 性别
+  barAge       Float?        @default(0)
   gender       String?       @default("未知")
-  // 发贴数量
   postCount    Int?          @default(0)
-  // IP归属地
   ipLocation   String?
-  // 关注的吧
-  followedBars FollowedBar[] @relation(name: "FollowedBarUser")
-  // 账户（只有是自己的账号才会有account）
-  account      Account?
-  // 发布的贴子
-  posts        Post[]
-  // 发布的评论
-  comments     Comment[]
   createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  updatedAt    DateTime?     @updatedAt
+  userId       String        @unique
+  portrait     String?
+  account      Account?
+  comments     Comment[]
+  posts        Post[]
   replyFrom    Reply[]       @relation("ReplyFromUser")
   replyTo      Reply[]       @relation("ReplyToUser")
+  followedBars FollowedBar[] @relation("FollowedBarUser")
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
-  // 标题
+  id        String    @id @default(dbgenerated("gen_random_uuid()"))
   title     String
-  // 内容
   content   String
-  // 发布时间
   postAt    DateTime
-  // 发布人
-  user      User      @relation(fields: [userId], references: [id])
-  userId    Int
-  // 发布的吧
-  bar       Bar       @relation(fields: [barId], references: [id])
-  barId     Int
-  // 评论
-  comments  Comment[]
+  userId    String
+  barId     String
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime?  @updatedAt
+  comments  Comment[]
+  bar       Bar       @relation(fields: [barId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   content   String
-  // 发布人
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  // 发布的贴子
-  post      Post     @relation(fields: [postId], references: [id])
-  postId    Int
-  // 评论下的回复
-  replies   Reply[]
-  // 评论时间
+  userId    String
+  postId    String
   commentAt DateTime
-
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime? @updatedAt
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  replies   Reply[]
 }
 
-// 评论回复
 model Reply {
-  id         Int     @id @default(autoincrement())
+  id         String   @id @default(dbgenerated("gen_random_uuid()"))
   content    String
-  // 发布人
-  fromUser   User    @relation(fields: [fromUserId], references: [id], name: "ReplyFromUser")
-  fromUserId Int
-  // 接收人
-  toUser     User    @relation(fields: [toUserId], references: [id], name: "ReplyToUser")
-  toUserId   Int
-  // 发布的评论
-  comment    Comment @relation(fields: [commentId], references: [id])
-  commentId  Int
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  fromUserId String
+  toUserId   String
+  commentId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime? @updatedAt
+  comment    Comment  @relation(fields: [commentId], references: [id])
+  fromUser   User     @relation("ReplyFromUser", fields: [fromUserId], references: [id])
+  toUser     User     @relation("ReplyToUser", fields: [toUserId], references: [id])
 }
 
-// 关注的吧
 model FollowedBar {
-  id        Int      @id @default(autoincrement())
-  // 经验值
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   exp       Int
-  // 等级
   level     Int
-  bar       Bar      @relation(fields: [barId], references: [id])
-  barId     Int
-  user      User[]   @relation(name: "FollowedBarUser")
+  barId     String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime? @updatedAt
+  bar       Bar      @relation(fields: [barId], references: [id])
+  user      User[]   @relation("FollowedBarUser")
 }
 
 model Bar {
-  id           Int           @id @default(autoincrement())
+  id           String        @id @default(dbgenerated("gen_random_uuid()"))
   name         String        @unique
-  // 关注人数
   followed     Int
-  // 贴子数
   postCount    Int
+  barTypeId    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime?      @updatedAt
   barType      BarType       @relation(fields: [barTypeId], references: [id])
-  barTypeId    Int
   followedBars FollowedBar[]
   posts        Post[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
 }
 
-// 吧类型
 model BarType {
-  id   Int    @id @default(autoincrement())
+  id   String @id @default(dbgenerated("gen_random_uuid()"))
   name String @unique
   Bar  Bar[]
 }
